@@ -46,10 +46,15 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 def get_data(symbol):
+    # Aumentamos o tempo de espera entre um ativo e outro para a API não travar
+    time.sleep(2) 
     url = f"https://api.twelvedata.com/quote?symbol={symbol}&apikey={API_KEY}"
     try:
-        r = requests.get(url).json()
-        return r if "price" in r else None
+        response = requests.get(url)
+        r = response.json()
+        if "price" in r:
+            return r
+        return None
     except:
         return None
 
