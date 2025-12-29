@@ -5,9 +5,9 @@ import time
 import plotly.express as px
 
 # 1. Configuração da Página
-st.set_page_config(page_title="Terminal Financeiro Pro", layout="wide")
+st.set_page_config(page_title="Monitor Integrado Pro", layout="wide")
 
-# 2. CSS para Design, Alertas e Barras de Pressão
+# 2. CSS para manter o visual escuro e os alertas
 st.markdown("""
 <style>
     .stApp { background-color: #000000; }
@@ -18,7 +18,7 @@ st.markdown("""
         padding: 15px;
         text-align: center;
         color: white;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
     }
     .vix-danger {
         background-color: #4a0000;
@@ -34,99 +34,68 @@ st.markdown("""
         70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
         100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
     }
-    .progress-container {
-        background-color: #333;
-        border-radius: 10px;
-        height: 12px;
-        width: 100%;
-        margin-top: 10px;
-    }
-    .progress-bar {
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Funções de Suporte
+# 3. Funções de Suporte (Som e Dados)
 def tocar_alerta():
-    """Gera o beep sonoro via JavaScript"""
-    st.components.v1.html("""
-        <script>
-        var context = new (window.AudioContext || window.webkitAudioContext)();
-        var osc = context.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, context.currentTime);
-        osc.connect(context.destination);
-        osc.start();
-        osc.stop(context.currentTime + 0.5);
-        </script>
-        """, height=0)
+    st.components.v1.html("<script>var context = new (window.AudioContext || window.webkitAudioContext)(); var osc = context.createOscillator(); osc.type = 'sine'; osc.frequency.setValueAtTime(440, context.currentTime); osc.connect(context.destination); osc.start(); osc.stop(context.currentTime + 0.5);</script>", height=0)
 
-def gerar_dados_ativo():
-    """Gera dados individuais para cada gráfico e medidor"""
-    pressao = random.randint(10, 95)
-    df = pd.DataFrame({
-        "Data": pd.date_range(start="2023-01-01", periods=15, freq="H"),
-        "Valor": [random.uniform(90, 110) for _ in range(15)]
-    })
-    return pressao, df
+def gerar_dados_completos():
+    # Gera dados para cada ativo separadamente para ser preciso
+    def criar_df():
+        return pd.DataFrame({
+            "Data": pd.date_range(start="2023-01-01", periods=15, freq="H"),
+            "Valor": [random.uniform(90, 110) for _ in range(15)]
+        })
+    
+    return {
+        "sp_preco": 6893.72 + random.uniform(-2, 2),
+        "sp_pressao": random.randint(10, 95),
+        "sp_df": criar_df(),
+        "nq_preco": 25678.10 + random.uniform(-10, 10),
+        "nq_pressao": random.randint(10, 95),
+        "nq_df": criar_df(),
+        "vix": round(random.uniform(17, 24), 2)
+    }
 
-def criar_grafico(df, cor):
-    fig = px.line(df, x="Data", y="Valor")
-    fig.update_traces(line_color=cor, line_width=2)
-    fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-        showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=120,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-    )
-    return fig
-
-def render_pressao(porcentagem):
-    cor = "#00ff00" if porcentagem > 50 else "#ff4b4b"
-    return f"""
-    <div style="margin-top:10px;">
-        <p style="margin:0; font-size:11px; color:#aaa; text-align:left;">PRESSÃO DE VOLUME: {porcentagem}%</p>
-        <div class="progress-container">
-            <div class="progress-bar" style="width: {porcentagem}%; background-color: {cor};"></div>
-        </div>
-    </div>
-    """
-
-# 4. Interface e Loop
-st.title("📟 TERMINAL FINANCEIRO PRO")
-st.info("Clique na tela uma vez para habilitar o áudio dos alertas.")
-
+# 4. Interface e Loop Infinito
+st.title("📟 MONITOR FINANCEIRO TOTAL")
 placeholder = st.empty()
 
 while True:
     with placeholder.container():
-        # Gerar valores globais
-        vix_atual = round(random.uniform(17, 24), 2)
+        d = gerar_dados_completos()
         
-        # Layout de 3 colunas (S&P, NASDAQ, VIX)
+        # Criando as 3 colunas para garantir que o VIX não suma
         col1, col2, col3 = st.columns(3)
         
-        # --- COLUNA 1: S&P 500 ---
-        p_sp, df_sp = gerar_dados_ativo()
         with col1:
-            st.markdown(f'<div class="card"><h3>S&P 500</h3><h2 style="color:#00ff00">6893.72</h2>{render_pressao(p_sp)}</div>', unsafe_allow_html=True)
-            st.plotly_chart(criar_grafico(df_sp, "#00ff00"), use_container_width=True, key="chart_sp")
-            
-        # --- COLUNA 2: NASDAQ ---
-        p_nq, df_nq = gerar_dados_ativo()
+            st.markdown(f'<div class="card"><h3>S&P 500</h3><h2 style="color:#00ff00">{d["sp_preco"]:.2f}</h2></div>', unsafe_allow_html=True)
+            # Gráfico com chave única
+            fig_sp = px.line(d["sp_df"], x="Data", y="Valor")
+            fig_sp.update_traces(line_color="#00ff00").update_layout(height=150, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+            st.plotly_chart(fig_sp, use_container_width=True, key="graf_sp_fixo")
+            # Medidor de Pressão Individual
+            st.write(f"Pressão: {d['sp_pressao']}%")
+            st.progress(d["sp_pressao"] / 100)
+
         with col2:
-            st.markdown(f'<div class="card"><h3>NASDAQ</h3><h2 style="color:#00ff00">25678.10</h2>{render_pressao(p_nq)}</div>', unsafe_allow_html=True)
-            st.plotly_chart(criar_grafico(df_nq, "#0088ff"), use_container_width=True, key="chart_nq")
-            
-        # --- COLUNA 3: VIX E ALERTAS ---
+            st.markdown(f'<div class="card"><h3>NASDAQ</h3><h2 style="color:#00ff00">{d["nq_preco"]:.2f}</h2></div>', unsafe_allow_html=True)
+            # Gráfico com chave única
+            fig_nq = px.line(d["nq_df"], x="Data", y="Valor")
+            fig_nq.update_traces(line_color="#0088ff").update_layout(height=150, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+            st.plotly_chart(fig_nq, use_container_width=True, key="graf_nq_fixo")
+            # Medidor de Pressão Individual
+            st.write(f"Pressão: {d['nq_pressao']}%")
+            st.progress(d["nq_pressao"] / 100)
+
         with col3:
-            if vix_atual > 21:
-                st.markdown(f'<div class="vix-danger"><h3>⚠️ VIX ALTO</h3><h2>{vix_atual}</h2><p>RISCO ELEVADO</p></div>', unsafe_allow_html=True)
+            # Lógica do VIX e Som integrada
+            if d["vix"] > 21:
+                st.markdown(f'<div class="vix-danger"><h3>⚠️ VIX ALTO</h3><h2>{d["vix"]}</h2><p>DISPARANDO ALERTA</p></div>', unsafe_allow_html=True)
                 tocar_alerta()
             else:
-                st.markdown(f'<div class="card"><h3>VIX (VOLATILIDADE)</h3><h2 style="color:#ffaa00">{vix_atual}</h2><p>MERCADO ESTÁVEL</p></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="card"><h3>VIX</h3><h2 style="color:#ffaa00">{d["vix"]}</h2><p>NORMAL</p></div>', unsafe_allow_html=True)
 
     time.sleep(2)
