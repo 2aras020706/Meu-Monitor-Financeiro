@@ -2,39 +2,29 @@ import streamlit as st
 import pandas as pd
 import random
 import time
-from collections import deque
 
 # Configuração da página
-st.set_page_config(page_title="Monitor Pro: S&P, NQ e VIX", layout="wide")
+st.set_page_config(page_title="Monitor Pro com Alerta Sonoro", layout="wide")
 
-# Estilos CSS (Foco nos principais e alerta VIX)
+# --- DESIGN E ALERTAS (CSS) ---
 st.markdown("""
 <style>
     .stApp { background-color: #000000; }
-    .main-card {
+    .card {
         background-color: #1a1a1a;
-        border: 2px solid #5a189a;
-        border-radius: 12px;
-        padding: 20px;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 15px;
         text-align: center;
         color: white;
     }
-    .secondary-card {
-        background-color: #0e0e0e;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        color: #bbb;
-    }
-    .vix-alert {
+    .vix-danger {
         background-color: #4a0000;
         border: 2px solid #ff0000;
-        border-radius: 12px;
-        padding: 20px;
+        border-radius: 10px;
+        padding: 15px;
         text-align: center;
         color: #ff0000;
-        font-weight: bold;
         animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
@@ -45,54 +35,62 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Memória para o gráfico do S&P 500 (Principal)
-if 'hist_sp' not in st.session_state:
-    st.session_state.hist_sp = deque([5250.0] * 50, maxlen=50)
+# Função para o Alerta Sonoro (HTML/JS)
+def tocar_alerta():
+    # Gera um som de "Beep" via Browser
+    st.components.v1.html(
+        """
+        <script>
+        var context = new (window.AudioContext || window.webkitAudioContext)();
+        var osc = context.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, context.currentTime);
+        osc.connect(context.destination);
+        osc.start();
+        osc.stop(context.currentTime + 0.5);
+        </script>
+        """,
+        height=0,
+    )
 
-def atualizar_dados():
-    vix = round(random.uniform(18.0, 26.0), 2)
-    novo_sp = st.session_state.hist_sp[-1] + random.uniform(-5, 5)
-    st.session_state.hist_sp.append(novo_sp)
-    return {
-        "SP500": round(novo_sp, 2),
-        "NASDAQ": random.randint(18200, 18400),
-        "VIX": vix,
-        "WIN": random.randint(115000, 117000),
-        "DOLAR": round(random.uniform(5.30, 5.40), 2)
-    }
+def gerar_dados():
+    vix = round(random.uniform(16.0, 24.0), 2)
+    sp500 = round(6896.12 + random.uniform(-10, 10), 2)
+    nasdaq = round(25694.50 + random.uniform(-40, 40), 2)
+    pressao = random.randint(10, 95)
+    return {"SP500": sp500, "NASDAQ": nasdaq, "VIX": vix, "PRESSAO": pressao}
 
-st.title("🚀 MONITOR DE ALTA PRIORIDADE")
+st.title("📟 MONITOR COM ALERTA SONORO")
+st.info("Nota: Clique em qualquer lugar da página uma vez para o navegador permitir o som.")
 
 placeholder = st.empty()
 
 while True:
     with placeholder.container():
-        d = atualizar_dados()
+        d = gerar_dados()
         
-        # --- LINHA PRINCIPAL (S&P 500, NASDAQ, VIX) ---
         col1, col2, col3 = st.columns(3)
-        
         with col1:
-            st.markdown(f'<div class="main-card"><h3>S&P 500 (ES)</h3><h1 style="color:#00ff00">{d["SP500"]}</h1></div>', unsafe_allow_html=True)
-        
+            st.markdown(f'<div class="card"><h3>S&P 500 (ES)</h3><h2 style="color:#00ff00">{d["SP500"]}</h2></div>', unsafe_allow_html=True)
         with col2:
-            st.markdown(f'<div class="main-card"><h3>NASDAQ (NQ)</h3><h1 style="color:#00ff00">{d["NASDAQ"]}</h1></div>', unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="card"><h3>NASDAQ (NQ)</h3><h2 style="color:#00ff00">{d["NASDAQ"]}</h2></div>', unsafe_allow_html=True)
         with col3:
-            if d["VIX"] > 22:
-                st.markdown(f'<div class="vix-alert"><h3>⚠️ VIX ALTO</h3><h1>{d["VIX"]}</h1></div>', unsafe_allow_html=True)
+            if d["VIX"] > 21:
+                st.markdown(f'<div class="vix-danger"><h3>⚠️ VIX ALTO</h3><h2>{d["VIX"]}</h2></div>', unsafe_allow_html=True)
+                tocar_alerta() # Dispara o som
             else:
-                st.markdown(f'<div class="main-card"><h3>VIX</h3><h1 style="color:#ffaa00">{d["VIX"]}</h1></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="card"><h3>VIX</h3><h2 style="color:#ffaa00">{d["VIX"]}</h2></div>', unsafe_allow_html=True)
 
-        # --- GRÁFICO DE 5 MINUTOS (Focado no S&P 500) ---
+        # Medidor de Pressão
         st.write("")
-        st.subheader("Tendência S&P 500 (Últimos 5 Minutos)")
-        st.area_chart(pd.DataFrame(list(st.session_state.hist_sp), columns=['Pontos']), color="#5a189a")
-
-        # --- LINHA SECUNDÁRIA (Outros ativos) ---
-        st.write("")
-        c_a, c_b = st.columns(2)
-        c_a.markdown(f'<div class="secondary-card"><b>WIN:</b> {d["WIN"]}</div>', unsafe_allow_html=True)
-        c_b.markdown(f'<div class="secondary-card"><b>DÓLAR:</b> R$ {d["DOLAR"]}</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="card">
+                <p><b>PRESSÃO ({d["PRESSAO"]}%)</b></p>
+                <div style="background-color: #333; border-radius: 20px; height: 20px;">
+                    <div style="background: linear-gradient(90deg, #ff4b4b {100-d["PRESSAO"]}%, #00ff00 {d["PRESSAO"]}%); 
+                    width: 100%; height: 100%; border-radius: 20px;"></div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
     time.sleep(2)
