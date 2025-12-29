@@ -2,95 +2,117 @@ import streamlit as st
 import pandas as pd
 import random
 import time
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 
-# Configuração da página
-st.set_page_config(page_title="Monitor Pro com Alerta Sonoro", layout="wide")
+# 1. Configuração da página
+st.set_page_config(page_title="Terminal Pro - Multi-Ativos", layout="wide")
 
-# --- DESIGN E ALERTAS (CSS) ---
+# 2. CSS para manter o estilo escuro e os alertas
 st.markdown("""
 <style>
     .stApp { background-color: #000000; }
-    .card {
+    .main-card {
         background-color: #1a1a1a;
         border: 1px solid #333;
         border-radius: 10px;
-        padding: 15px;
+        padding: 10px;
         text-align: center;
-        color: white;
+        margin-bottom: 10px;
     }
     .vix-danger {
         background-color: #4a0000;
         border: 2px solid #ff0000;
-        border-radius: 10px;
-        padding: 15px;
-        text-align: center;
-        color: #ff0000;
         animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
         0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-        70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); }
+        70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
         100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Função para o Alerta Sonoro (HTML/JS)
-def tocar_alerta():
-    # Gera um som de "Beep" via Browser
-    st.components.v1.html(
-        """
-        <script>
-        var context = new (window.AudioContext || window.webkitAudioContext)();
-        var osc = context.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, context.currentTime);
-        osc.connect(context.destination);
-        osc.start();
-        osc.stop(context.currentTime + 0.5);
-        </script>
-        """,
-        height=0,
+# 3. Função para gerar dados de velas (OHLC) simulados
+def gerar_velas(preco_atual, pontos=20):
+    dados = []
+    tempo_atual = datetime.now()
+    for i in range(pontos):
+        abertura = preco_atual + random.uniform(-5, 5)
+        fechamento = abertura + random.uniform(-4, 4)
+        maxima = max(abertura, fechamento) + random.uniform(0, 3)
+        minima = min(abertura, fechamento) - random.uniform(0, 3)
+        dados.append({
+            "Date": tempo_atual - timedelta(minutes=5*i),
+            "Open": abertura, "High": maxima, "Low": minima, "Close": fechamento
+        })
+    return pd.DataFrame(dados)
+
+# 4. Função para criar o gráfico de velas compacto
+def criar_grafico_velas(df):
+    fig = go.Figure(data=[go.Candlestick(
+        x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
+        increasing_line_color='#00ff00', decreasing_line_color='#ff4b4b'
+    )])
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=150,
+        xaxis_rangeslider_visible=False,
+        template="plotly_dark",
+        xaxis_showticklabels=False,
+        yaxis_showticklabels=False,
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
     )
+    return fig
 
-def gerar_dados():
-    vix = round(random.uniform(16.0, 24.0), 2)
-    sp500 = round(6896.12 + random.uniform(-10, 10), 2)
-    nasdaq = round(25694.50 + random.uniform(-40, 40), 2)
-    pressao = random.randint(10, 95)
-    return {"SP500": sp500, "NASDAQ": nasdaq, "VIX": vix, "PRESSAO": pressao}
+# 5. Função de Alerta Sonoro
+def tocar_alerta():
+    st.components.v1.html("<script>var c=new AudioContext();var o=c.createOscillator();o.connect(c.destination);o.start();o.stop(c.currentTime+0.2);</script>", height=0)
 
-st.title("📟 MONITOR COM ALERTA SONORO")
-st.info("Nota: Clique em qualquer lugar da página uma vez para o navegador permitir o som.")
-
+# --- LOOP PRINCIPAL ---
 placeholder = st.empty()
 
 while True:
-    with placeholder.container():
-        d = gerar_dados()
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f'<div class="card"><h3>S&P 500 (ES)</h3><h2 style="color:#00ff00">{d["SP500"]}</h2></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown(f'<div class="card"><h3>NASDAQ (NQ)</h3><h2 style="color:#00ff00">{d["NASDAQ"]}</h2></div>', unsafe_allow_html=True)
-        with col3:
-            if d["VIX"] > 21:
-                st.markdown(f'<div class="vix-danger"><h3>⚠️ VIX ALTO</h3><h2>{d["VIX"]}</h2></div>', unsafe_allow_html=True)
-                tocar_alerta() # Dispara o som
-            else:
-                st.markdown(f'<div class="card"><h3>VIX</h3><h2 style="color:#ffaa00">{d["VIX"]}</h2></div>', unsafe_allow_html=True)
+    # Simulando dados baseados na sua imagem
+    dados = {
+        "SP500": {"val": round(6897.69 + random.uniform(-2, 2), 2), "pres": random.randint(30, 80)},
+        "NASDAQ": {"val": round(25694.50 + random.uniform(-10, 10), 2), "pres": random.randint(20, 90)},
+        "VIX": {"val": round(16.73 + random.uniform(-1, 5), 2), "pres": random.randint(10, 50)}
+    }
 
-        # Medidor de Pressão
-        st.write("")
-        st.markdown(f"""
-            <div class="card">
-                <p><b>PRESSÃO ({d["PRESSAO"]}%)</b></p>
-                <div style="background-color: #333; border-radius: 20px; height: 20px;">
-                    <div style="background: linear-gradient(90deg, #ff4b4b {100-d["PRESSAO"]}%, #00ff00 {d["PRESSAO"]}%); 
-                    width: 100%; height: 100%; border-radius: 20px;"></div>
+    with placeholder.container():
+        cols = st.columns(3)
+        
+        for i, (ativo, info) in enumerate(dados.items()):
+            with cols[i]:
+                # Estilo dinâmico para o VIX
+                estilo_vix = "vix-danger" if ativo == "VIX" and info['val'] > 21 else ""
+                
+                # Card de Preço
+                st.markdown(f"""
+                <div class="main-card {estilo_vix}">
+                    <p style="color:#aaa; margin:0;">{ativo} FUTURO</p>
+                    <h2 style="color:#00ff00; margin:0;">{info['val']}</h2>
                 </div>
-            </div>
-        """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+                
+                # Gráfico de Velas
+                df_velas = gerar_velas(info['val'])
+                st.plotly_chart(criar_grafico_velas(df_velas), use_container_width=True, config={'displayModeBar': False})
+                
+                # Medidor de Pressão Individual
+                st.markdown(f"""
+                <div style="background-color:#1a1a1a; padding:5px; border-radius:5px; text-align:center;">
+                    <small style="color:white;">PRESSÃO: {info['pres']}%</small>
+                    <div style="background:#333; height:8px; border-radius:10px; margin-top:5px;">
+                        <div style="background:linear-gradient(90deg, #ff4b4b {100-info['pres']}%, #00ff00 {info['pres']}%); 
+                        width:100%; height:100%; border-radius:10px;"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                if ativo == "VIX" and info['val'] > 21:
+                    tocar_alerta()
 
     time.sleep(2)
