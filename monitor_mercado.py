@@ -5,39 +5,43 @@ import time
 
 # Configurações de API
 API_KEY = "8ee68d10f659463ba3380b93902e6407"
-# Usando ETFs para garantir que os dados apareçam na conta gratuita
+# Usando ativos que sempre funcionam na API gratuita
 SYMBOLS = {"VIX": "VIXY", "ES": "SPY", "NQ": "QQQ"}
 
 st.set_page_config(page_title="Monitor de Mercado", layout="wide")
 
-# --- ESTILO CSS PARA O VISUAL NEON/DARK ---
+# --- DESIGN PROFISSIONAL (CSS) ---
 st.markdown("""
     <style>
-    main { background-color: #000000; }
+    /* Fundo total preto */
     .stApp { background-color: #000000; }
     
-    /* Estilo dos Cartões */
-    .metric-card {
-        background-color: #0e0e10;
-        border: 1px solid #3d2b56;
+    /* Estilo dos Cards Neon */
+    .card {
+        background-color: #0a0a0a;
+        border: 2px solid #5a189a;
         border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 15px rgba(123, 31, 162, 0.2);
+        padding: 25px;
+        margin-bottom: 20px;
+        font-family: 'Inter', sans-serif;
     }
     
-    .symbol-title { color: #ffffff; font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-    .sub-title { color: #8a8a8e; font-size: 14px; margin-bottom: 20px; }
-    .price { color: #ffffff; font-size: 42px; font-weight: bold; font-family: 'Courier New', monospace; }
-    .delta-neg { color: #ff3b30; font-size: 18px; }
-    .delta-pos { color: #34c759; font-size: 18px; }
+    .symbol { color: #ffffff; font-size: 28px; font-weight: bold; }
+    .description { color: #666666; font-size: 14px; margin-bottom: 15px; }
+    .price { color: #ffffff; font-size: 50px; font-weight: bold; letter-spacing: -1px; }
     
-    /* Detalhes de Baixo */
-    .info-label { color: #8a8a8e; font-size: 12px; text-transform: uppercase; }
-    .info-value { color: #ffffff; font-size: 16px; font-weight: bold; margin-bottom: 10px; }
+    .delta-pos { color: #34c759; font-size: 20px; font-weight: bold; }
+    .delta-neg { color: #ff3b30; font-size: 20px; font-weight: bold; }
     
-    /* Barra de Progresso Roxa */
-    .stProgress > div > div > div > div { background-color: #7b1fa2; }
+    .label { color: #444444; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-top: 15px; }
+    .value { color: #ffffff; font-size: 18px; font-weight: bold; }
+    
+    /* Barra de progresso customizada (roxo neon) */
+    .stProgress > div > div > div > div { background-color: #9d4edd; }
+    
+    /* Esconder menus do streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,12 +53,14 @@ def get_data(symbol):
     except:
         return None
 
-# Cabeçalho Superior
-st.markdown("<h1 style='color: #ffffff; text-shadow: 2px 2px #7b1fa2;'>MONITOR DE MERCADO</h1>", unsafe_allow_html=True)
-if st.button('🔄 REFRESH'):
+# Título do Painel
+st.markdown("<h1 style='color: white; font-size: 30px; border-left: 5px solid #9d4edd; padding-left: 15px;'>MONITOR DE MERCADO</h1>", unsafe_allow_html=True)
+
+# Botão de atualização
+if st.button('🔄 ATUALIZAR DADOS'):
     st.rerun()
 
-# Layout em colunas
+# Criar os Cards para cada ativo
 for label, sym in SYMBOLS.items():
     data = get_data(sym)
     
@@ -62,33 +68,40 @@ for label, sym in SYMBOLS.items():
         price = float(data['price'])
         change = float(data['change'])
         percent = float(data['percent_change'])
-        color_class = "delta-pos" if change >= 0 else "delta-neg"
-        arrow = "▲" if change >= 0 else "▼"
+        high = float(data['high'])
+        low = float(data['low'])
         
-        # HTML customizado para imitar a sua imagem
+        color_class = "delta-pos" if change >= 0 else "delta-neg"
+        arrow = "↑" if change >= 0 else "↓"
+        desc = {"VIX": "Índice de Volatilidade", "ES": "S&P 500 Futuros (SPY)", "NQ": "Nasdaq 100 Futuros (QQQ)"}
+
+        # HTML do Card
         st.markdown(f"""
-            <div class="metric-card">
-                <div class="symbol-title">{label} <span style="font-size: 14px; color: #7b1fa2;">{arrow}</span></div>
-                <div class="sub-title">Futuros do {label} 100</div>
+            <div class="card">
+                <div class="symbol">{label} <span style="font-size: 18px; color: #9d4edd;">{arrow}</span></div>
+                <div class="description">{desc[label]}</div>
                 <div class="price">$ {price:,.2f}</div>
-                <div class="{color_class}">{change:+.2f} ( {percent:+.2f} % )</div>
-                <hr style="border: 0.1px solid #333; margin: 20px 0;">
-                <div style="display: flex; justify-content: space-between;">
+                <div class="{color_class}">{change:+.2f} ({percent:+.2f}%)</div>
+                
+                <div style="display: flex; gap: 40px; margin-top: 20px; border-top: 1px solid #222; padding-top: 15px;">
                     <div>
-                        <div class="info-label">ALTO</div>
-                        <div class="info-value">$ {float(data['high']):,.2f}</div>
+                        <div class="label">Máxima (High)</div>
+                        <div class="value">$ {high:,.2f}</div>
                     </div>
                     <div>
-                        <div class="info-label">BAIXO</div>
-                        <div class="info-value">$ {float(data['low']):,.2f}</div>
+                        <div class="label">Mínima (Low)</div>
+                        <div class="value">$ {low:,.2f}</div>
                     </div>
                 </div>
-                <div class="info-label">PRESSÃO DE COMPRA (RSI)</div>
+                
+                <div class="label" style="margin-top: 20px;">Indicador de Pressão de Compra</div>
             </div>
         """, unsafe_allow_html=True)
-        # Barra de progresso roxa (simulando o medidor da imagem)
-        st.progress(52 if label == "ES" else 45) 
-    else:
-        st.warning(f"Aguardando dados de {label}...")
+        
+        # Simula o indicador RSI/Pressão com a barra do Streamlit
+        # (Aqui usamos o percentual de fechamento em relação ao range do dia)
+        pressure = ((price - low) / (high - low) * 100) if high != low else 50
+        st.progress(int(max(0, min(100, pressure))))
+        st.markdown("<br>", unsafe_allow_html=True)
     
-    time.sleep(1) # Delay para evitar bloqueio da API
+    time.sleep(1) # Delay para respeitar o limite da API gratuita
