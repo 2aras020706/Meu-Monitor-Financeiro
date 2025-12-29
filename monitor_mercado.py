@@ -1,77 +1,75 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import plotly.express as px
+import random
 import time
+import plotly.express as px
 
-# 1. Configuração (Deve ser a primeira linha)
-st.set_page_config(layout="wide")
+# 1. Configurações Iniciais para evitar erros de ID e Layout
+st.set_page_config(page_title="Terminal Financeiro Estável", layout="wide")
 
-# 2. CSS para o visual e alertas (Mantendo seu estilo)
+# CSS para alertas e cards (Mantendo o visual das suas fotos)
 st.markdown("""
 <style>
-    .stApp { background-color: #0d1117; color: white; }
-    .card { background-color: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; text-align: center; }
-    .vix-alert { background-color: #490e0e; border: 2px solid #f85149; border-radius: 10px; padding: 20px; text-align: center; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+    .stApp { background-color: #000000; }
+    .card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 10px; padding: 15px; text-align: center; color: white; }
+    .vix-danger { background-color: #4a0000; border: 2px solid #ff0000; border-radius: 10px; padding: 15px; text-align: center; color: #ff0000; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 0, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); } }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Funções que geram os dados NA HORA para evitar NameError
-def obter_dados_frescos():
-    """Gera todos os dados necessários em um único dicionário"""
-    return {
-        "sp_preco": 6893.72 + np.random.uniform(-5, 5),
-        "nq_preco": 25678.10 + np.random.uniform(-20, 20),
-        "vix": round(np.random.uniform(15, 25), 2),
-        "pressao_sp": np.random.randint(20, 90),
-        "pressao_nq": np.random.randint(20, 90),
-        "df": pd.DataFrame({
-            "Tempo": pd.date_range(start="now", periods=10, freq="min"),
-            "Valor": np.random.randn(10).cumsum() + 100
-        })
-    }
+# 2. Funções de Dados (Resolvendo o NameError)
+def gerar_dados_ativo():
+    # Criamos o dataframe dentro da função para que ele SEMPRE exista
+    df = pd.DataFrame({
+        "Data": pd.date_range(start="2023-01-01", periods=12, freq="H"),
+        "Valor": [random.uniform(95, 105) for _ in range(12)]
+    })
+    pressao = random.randint(15, 90)
+    return df, pressao
 
-def som_alerta():
-    st.components.v1.html("<script>var c=new AudioContext();var o=c.createOscillator();o.connect(c.destination);o.start();o.stop(c.currentTime+0.3);</script>", height=0)
+def tocar_alerta():
+    st.components.v1.html("<script>var context = new (window.AudioContext || window.webkitAudioContext)(); var osc = context.createOscillator(); osc.type = 'sine'; osc.frequency.setValueAtTime(440, context.currentTime); osc.connect(context.destination); osc.start(); osc.stop(context.currentTime + 0.5);</script>", height=0)
 
-# 4. Loop Principal
-st.title("📟 Terminal de Monitoramento Financeiro")
-placeholder = st.empty() # Espaço que será limpo e atualizado
+# 3. Loop Principal (Usando placeholder para evitar que dados sumam)
+placeholder = st.empty()
 
 while True:
-    # Capturamos os dados primeiro. Agora 'dados' existe com certeza.
-    dados = obter_dados_frescos()
-    
     with placeholder.container():
+        st.title("📟 TERMINAL FINANCEIRO PRO")
+        
+        # Sorteio do VIX antes das colunas para controle do alerta
+        vix_valor = round(random.uniform(18, 25), 2)
+        
         col1, col2, col3 = st.columns(3)
-
-        # ATIVO 1: SP500
+        
+        # --- ATIVO 1: SP500 ---
+        df_sp, p_sp = gerar_dados_ativo()
         with col1:
-            st.markdown(f'<div class="card"><h3>S&P 500</h3><h2>{dados["sp_preco"]:.2f}</h2></div>', unsafe_allow_html=True)
-            # Criamos o gráfico usando os dados que acabamos de gerar
-            fig1 = px.line(dados["df"], x="Tempo", y="Valor", template="plotly_dark")
-            fig1.update_layout(height=180, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
-            st.plotly_chart(fig1, use_container_width=True, key="grafico_sp") # KEY ÚNICA
-            st.write(f"Pressão Compra: {dados['pressao_sp']}%")
-            st.progress(dados['pressao_sp'] / 100)
+            st.markdown(f'<div class="card"><h3>S&P 500</h3><h2 style="color:#00ff00">6893.72</h2></div>', unsafe_allow_html=True)
+            fig_sp = px.line(df_sp, x="Data", y="Valor")
+            fig_sp.update_traces(line_color="#00ff00").update_layout(height=150, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+            # USANDO KEY ÚNICA para evitar o erro de DuplicateElementKey
+            st.plotly_chart(fig_sp, use_container_width=True, key="graf_sp_estavel")
+            st.write(f"**Pressão Individual: {p_sp}%**")
+            st.progress(p_sp / 100)
 
-        # ATIVO 2: NASDAQ
+        # --- ATIVO 2: NASDAQ ---
+        df_nq, p_nq = gerar_dados_ativo()
         with col2:
-            st.markdown(f'<div class="card"><h3>NASDAQ</h3><h2>{dados["nq_preco"]:.2f}</h2></div>', unsafe_allow_html=True)
-            fig2 = px.line(dados["df"], x="Tempo", y="Valor", template="plotly_dark")
-            fig2.update_traces(line_color="#0088ff")
-            fig2.update_layout(height=180, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
-            st.plotly_chart(fig2, use_container_width=True, key="grafico_nq") # KEY ÚNICA
-            st.write(f"Pressão Compra: {dados['pressao_nq']}%")
-            st.progress(dados['pressao_nq'] / 100)
+            st.markdown(f'<div class="card"><h3>NASDAQ</h3><h2 style="color:#00ff00">25678.10</h2></div>', unsafe_allow_html=True)
+            fig_nq = px.line(df_nq, x="Data", y="Valor")
+            fig_nq.update_traces(line_color="#0088ff").update_layout(height=150, margin=dict(l=0,r=0,t=0,b=0), xaxis_visible=False, yaxis_visible=False)
+            # KEY ÚNICA DIFERENTE
+            st.plotly_chart(fig_nq, use_container_width=True, key="graf_nq_estavel")
+            st.write(f"**Pressão Individual: {p_nq}%**")
+            st.progress(p_nq / 100)
 
-        # VIX E ALERTAS
+        # --- ATIVO 3: VIX E ALERTAS ---
         with col3:
-            if dados["vix"] > 22:
-                st.markdown(f'<div class="vix-alert"><h3>⚠️ VIX ALTO</h3><h2>{dados["vix"]}</h2></div>', unsafe_allow_html=True)
-                som_alerta()
+            if vix_valor > 22:
+                st.markdown(f'<div class="vix-danger"><h3>⚠️ VIX ALTO</h3><h2>{vix_valor}</h2><p>RISCO DE QUEDA</p></div>', unsafe_allow_html=True)
+                tocar_alerta()
             else:
-                st.markdown(f'<div class="card"><h3>VIX</h3><h2>{dados["vix"]}</h2><p>Estável</p></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="card"><h3>VIX</h3><h2 style="color:#ffaa00">{vix_valor}</h2><p>ESTÁVEL</p></div>', unsafe_allow_html=True)
 
-    time.sleep(1) # Atualiza a cada 1 segundo
+    time.sleep(2)
