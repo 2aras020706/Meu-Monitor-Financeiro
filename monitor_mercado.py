@@ -1,75 +1,65 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime
 
 # Configuração da página para ocupar a tela toda
-st.set_page_config(layout="wide", page_title="Monitor de Trading")
+st.set_page_config(layout="wide")
 
-# --- FUNÇÃO PARA GERAR DADOS DE EXEMPLO ---
-def get_market_data():
-    # Simulando um histórico de 50 velas
-    if 'df' not in st.session_state:
-        dates = pd.date_range(end=datetime.now(), periods=50, freq='1min')
-        st.session_state.df = pd.DataFrame({
-            'time': dates,
-            'open': np.random.uniform(25600, 25700, 50),
-            'high': np.random.uniform(25700, 25750, 50),
-            'low': np.random.uniform(25550, 25600, 50),
-            'close': np.random.uniform(25600, 25700, 50)
-        })
-    
-    # Simula a variação da "Vela Atual" (a última linha)
-    last_idx = st.session_state.df.index[-1]
-    current_close = st.session_state.df.loc[last_idx, 'close']
-    variation = np.random.uniform(-5, 5)
-    
-    st.session_state.df.loc[last_idx, 'close'] = current_close + variation
-    # Atualiza máxima/mínima da vela atual
-    if current_close > st.session_state.df.loc[last_idx, 'high']:
-        st.session_state.df.loc[last_idx, 'high'] = current_close
-    if current_close < st.session_state.df.loc[last_idx, 'low']:
-        st.session_state.df.loc[last_idx, 'low'] = current_close
-        
-    return st.session_state.df
+# --- FUNÇÃO PARA CRIAR O GRÁFICO ---
+def criar_grafico(df, titulo):
+    # Cálculo de Indicadores (Média Móvel de 9 e 20 períodos)
+    df['MA9'] = df['close'].rolling(window=9).mean()
+    df['MA20'] = df['close'].rolling(window=20).mean()
 
-# --- COMPONENTE DO GRÁFICO (O SEGREDO) ---
-@st.fragment(run_every=1) # Atualiza apenas esta função a cada 1 segundo
-def render_live_chart():
-    df = get_market_data()
-    
-    fig = go.Figure(data=[go.Candlestick(
-        x=df['time'],
-        open=df['open'],
-        high=df['high'],
-        low=df['low'],
-        close=df['close'],
-        increasing_line_color='#26a69a', decreasing_line_color='#ef5350'
-    )])
+    fig = go.Figure()
 
+    # Candlestick
+    fig.add_trace(go.Candlestick(
+        x=df.index, open=df['open'], high=df['high'],
+        low=df['low'], close=df['close'], name='Preço'
+    ))
+
+    # Indicadores de Tendência
+    fig.add_trace(go.Scatter(x=df.index, y=df['MA9'], name='MA9', line=dict(color='yellow', width=1)))
+    fig.add_trace(go.Scatter(x=df.index, y=df['MA20'], name='MA20', line=dict(color='blue', width=1)))
+
+    # Estilização para evitar que o gráfico "pule"
     fig.update_layout(
-        template="plotly_dark",
+        title=titulo,
         xaxis_rangeslider_visible=False,
-        margin=dict(l=10, r=10, t=10, b=10),
-        height=500,
-        # O uirevision impede que o gráfico "resete" o zoom/posição ao atualizar
-        uirevision='constant', 
-        yaxis=dict(
-            side="right",
-            fixedrange=False # Permite que o usuário mova o gráfico se quiser
-        )
+        height=300,
+        margin=dict(l=20, r=20, t=30, b=20),
+        uirevision='constant' # MANTÉM O ZOOM E POSIÇÃO FIXOS
     )
+    return fig
 
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+# --- LAYOUT PRINCIPAL ---
+st.title("📊 Terminal Financeiro Pro")
 
-# --- INTERFACE PRINCIPAL ---
-st.title("📊 Terminal Financeiro")
-
+# Criamos 3 colunas para SP500, NASDAQ e VIX
 col1, col2, col3 = st.columns(3)
-col1.metric("SP500", "6893.72", "+0.12%")
-col2.metric("NASDAQ", "25678.10", "-0.05%")
-col3.metric("VIX", "18.45", "-2.30%")
 
-# Chamada do fragmento
-render_live_chart()
+# Usamos FRAGMENTOS para atualizar apenas os dados, sem piscar a tela
+@st.fragment(run_every=1) # Atualiza a cada 1 segundo
+def atualizar_painel():
+    # Simulando a coleta de dados (Substitua pela sua API)
+    # Exemplo: dados_sp500 = sua_api.get('SP500')
+    
+    with col1:
+        st.metric("SP500", "6893.72", "+0.12%")
+        # Gráfico logo abaixo do ativo
+        st.plotly_chart(criar_grafico(df_exemplo, "S&P 500"), use_container_width=True)
+        # Medidor de Pressão
+        st.progress(80, text="Pressão de Compra: 80%")
+
+    with col2:
+        st.metric("NASDAQ", "25678.10", "-0.05%")
+        st.plotly_chart(criar_grafico(df_exemplo, "NASDAQ"), use_container_width=True)
+        st.progress(41, text="Pressão: 41%")
+
+    with col3:
+        st.metric("VIX", "18.45", "-2.30%")
+        st.plotly_chart(criar_grafico(df_exemplo, "VIX"), use_container_width=True)
+        st.progress(72, text="Pressão: 72%")
+
+atualizar_painel()
