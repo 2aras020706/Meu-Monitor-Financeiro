@@ -5,10 +5,10 @@ import time
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# 1. Configuração da página
+# Configuração da página
 st.set_page_config(page_title="Terminal Pro - Multi-Ativos", layout="wide")
 
-# 2. CSS para manter o estilo escuro e os alertas
+# CSS para estilo escuro, cards e alertas
 st.markdown("""
 <style>
     .stApp { background-color: #000000; }
@@ -18,7 +18,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 10px;
         text-align: center;
-        margin-bottom: 10px;
     }
     .vix-danger {
         background-color: #4a0000;
@@ -33,86 +32,77 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Função para gerar dados de velas (OHLC) simulados
-def gerar_velas(preco_atual, pontos=20):
+# Função para simular velas (Candlesticks)
+def gerar_velas(preco_atual):
     dados = []
-    tempo_atual = datetime.now()
-    for i in range(pontos):
-        abertura = preco_atual + random.uniform(-5, 5)
+    tempo = datetime.now()
+    for i in range(15):
+        abertura = preco_atual + random.uniform(-3, 3)
         fechamento = abertura + random.uniform(-4, 4)
-        maxima = max(abertura, fechamento) + random.uniform(0, 3)
-        minima = min(abertura, fechamento) - random.uniform(0, 3)
         dados.append({
-            "Date": tempo_atual - timedelta(minutes=5*i),
-            "Open": abertura, "High": maxima, "Low": minima, "Close": fechamento
+            "Date": tempo - timedelta(minutes=5*i),
+            "Open": abertura, "High": max(abertura, fechamento) + 1,
+            "Low": min(abertura, fechamento) - 1, "Close": fechamento
         })
     return pd.DataFrame(dados)
 
-# 4. Função para criar o gráfico de velas compacto
-def criar_grafico_velas(df):
+# Função para criar o gráfico de velas
+def criar_grafico(df):
     fig = go.Figure(data=[go.Candlestick(
         x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'],
         increasing_line_color='#00ff00', decreasing_line_color='#ff4b4b'
     )])
     fig.update_layout(
-        margin=dict(l=0, r=0, t=0, b=0),
-        height=150,
-        xaxis_rangeslider_visible=False,
-        template="plotly_dark",
-        xaxis_showticklabels=False,
-        yaxis_showticklabels=False,
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
+        margin=dict(l=0, r=0, t=0, b=0), height=180,
+        xaxis_rangeslider_visible=False, template="plotly_dark",
+        xaxis_showticklabels=False, yaxis_showticklabels=False,
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
     )
     return fig
 
-# 5. Função de Alerta Sonoro
+# Alerta Sonoro
 def tocar_alerta():
     st.components.v1.html("<script>var c=new AudioContext();var o=c.createOscillator();o.connect(c.destination);o.start();o.stop(c.currentTime+0.2);</script>", height=0)
 
-# --- LOOP PRINCIPAL ---
 placeholder = st.empty()
 
+# Inicialização de preços estáveis
+if 'precos' not in st.session_state:
+    st.session_state.precos = {"SP500": 6896.12, "NASDAQ": 25694.50, "VIX": 16.73}
+
 while True:
-    # Simulando dados baseados na sua imagem
-    dados = {
-        "SP500": {"val": round(6897.69 + random.uniform(-2, 2), 2), "pres": random.randint(30, 80)},
-        "NASDAQ": {"val": round(25694.50 + random.uniform(-10, 10), 2), "pres": random.randint(20, 90)},
-        "VIX": {"val": round(16.73 + random.uniform(-1, 5), 2), "pres": random.randint(10, 50)}
-    }
+    # Atualiza preços levemente
+    st.session_state.precos["SP500"] += random.uniform(-1, 1)
+    st.session_state.precos["NASDAQ"] += random.uniform(-5, 5)
+    st.session_state.precos["VIX"] = round(random.uniform(15, 23), 2)
 
     with placeholder.container():
         cols = st.columns(3)
+        ativos = ["SP500", "NASDAQ", "VIX"]
         
-        for i, (ativo, info) in enumerate(dados.items()):
+        for i, ativo in enumerate(ativos):
             with cols[i]:
-                # Estilo dinâmico para o VIX
-                estilo_vix = "vix-danger" if ativo == "VIX" and info['val'] > 21 else ""
+                preco = round(st.session_state.precos[ativo], 2)
+                pressao = random.randint(20, 80)
                 
-                # Card de Preço
-                st.markdown(f"""
-                <div class="main-card {estilo_vix}">
-                    <p style="color:#aaa; margin:0;">{ativo} FUTURO</p>
-                    <h2 style="color:#00ff00; margin:0;">{info['val']}</h2>
-                </div>
-                """, unsafe_allow_html=True)
+                # Card de Título e Preço
+                estilo = "vix-danger" if ativo == "VIX" and preco > 21 else ""
+                st.markdown(f'<div class="main-card {estilo}"><p style="color:#aaa;margin:0">{ativo}</p><h2>{preco}</h2></div>', unsafe_allow_html=True)
                 
                 # Gráfico de Velas
-                df_velas = gerar_velas(info['val'])
-                st.plotly_chart(criar_grafico_velas(df_velas), use_container_width=True, config={'displayModeBar': False})
+                st.plotly_chart(criar_grafico(gerar_velas(preco)), use_container_width=True, config={'displayModeBar': False})
                 
                 # Medidor de Pressão Individual
                 st.markdown(f"""
-                <div style="background-color:#1a1a1a; padding:5px; border-radius:5px; text-align:center;">
-                    <small style="color:white;">PRESSÃO: {info['pres']}%</small>
-                    <div style="background:#333; height:8px; border-radius:10px; margin-top:5px;">
-                        <div style="background:linear-gradient(90deg, #ff4b4b {100-info['pres']}%, #00ff00 {info['pres']}%); 
-                        width:100%; height:100%; border-radius:10px;"></div>
+                    <div style="background:#1a1a1a; padding:10px; border-radius:10px; text-align:center;">
+                        <small style="color:white">PRESSÃO: {pressao}%</small>
+                        <div style="background:#333; height:12px; border-radius:10px; margin-top:5px;">
+                            <div style="background:linear-gradient(90deg, #ff4b4b {100-pressao}%, #00ff00 {pressao}%); width:100%; height:100%; border-radius:10px;"></div>
+                        </div>
                     </div>
-                </div>
                 """, unsafe_allow_html=True)
 
-                if ativo == "VIX" and info['val'] > 21:
+                if ativo == "VIX" and preco > 21:
                     tocar_alerta()
 
     time.sleep(2)
